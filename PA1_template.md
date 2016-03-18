@@ -175,7 +175,6 @@ print(xtable(tab), type = "html", include.rownames = FALSE)
 ```
 
 <!-- html table generated in R 3.0.2 by xtable 1.7-1 package -->
-  <!-- Thu May 15 22:39:36 2014 -->
   <TABLE border=1>
   <TR> <TH> n </TH> <TH> nValid </TH> <TH> mean </TH> <TH> median </TH>  </TR>
   <TR> <TD align="right">  61 </TD> <TD align="right">  53 </TD> <TD align="right"> 10766.19 </TD> <TD align="right"> 10765 </TD> </TR>
@@ -241,7 +240,6 @@ print(xtable(tab), type = "html", include.rownames = FALSE)
 ```
 
 <!-- html table generated in R 3.0.2 by xtable 1.7-1 package -->
-  <!-- Thu May 15 22:39:36 2014 -->
   <TABLE border=1>
   <TR> <TH> isStepsMissing </TH> <TH> N </TH>  </TR>
   <TR> <TD> TRUE </TD> <TD align="right"> 2304 </TD> </TR>
@@ -251,7 +249,6 @@ print(xtable(tab), type = "html", include.rownames = FALSE)
   
   Use the [VIM](http://cran.r-project.org/web/packages/VIM/index.html) package to impute missing values of the `steps` variable.
 Use k-Nearest Neighbour Imputation.
-I couldn't get Iterative robust model-based imputation (IRMI) to work; try again later.
 
 
 ```r
@@ -279,7 +276,6 @@ print(xtable(tab), type = "html", include.rownames = FALSE)
 ```
 
 <!-- html table generated in R 3.0.2 by xtable 1.7-1 package -->
-<!-- Thu May 15 22:39:44 2014 -->
 <TABLE border=1>
 <TR> <TH> isMissing </TH> <TH> N </TH>  </TR>
 <TR> <TD> FALSE </TD> <TD align="right"> 17568 </TD> </TR>
@@ -358,7 +354,6 @@ print(xtable(tab), type = "html", include.rownames = FALSE)
 ```
 
 <!-- html table generated in R 3.0.2 by xtable 1.7-1 package -->
-<!-- Thu May 15 22:39:45 2014 -->
 <TABLE border=1>
 <TR> <TH> status </TH> <TH> n </TH> <TH> nValid </TH> <TH> mean </TH> <TH> median </TH>  </TR>
 <TR> <TD> After imputation </TD> <TD align="right">  61 </TD> <TD align="right">  61 </TD> <TD align="right"> 9752.39 </TD> <TD align="right"> 10395.00 </TD> </TR>
