@@ -1,109 +1,307 @@
----
-title: "PA1_template"
-author: Abhash Rajbhandari
----
-###Intro
-It is the first Assignment of **Reproducible Research** course in Coursera's Data Science specialization track. The purpose of the project was to answer a series of questions using data collected from a [FitBit](http://en.wikipedia.org/wiki/Fitbit).
+Peer Assessment 1
+=================
+  
+  Peer assessment 1 assignment Reproducible Research.
 
 
-## Loading and preprocessing the data
 
-Download, unzip and load data into data frame `data`. 
+Load packages.
+
 ```{r}
-if(!file.exists("getdata-projectfiles-UCI HAR Dataset.zip")) {
-        temp <- tempfile()
-        download.file("http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip",temp)
-        unzip(temp)
-        unlink(temp)
-}
-
-data <- read.csv("activity.csv")
+packages <- c("data.table", "ggplot2", "xtable", "VIM")
+sapply(packages, require, character.only=TRUE, quietly=TRUE)
 ```
 
 
-## What is mean total number of steps taken per day?
-Sum steps by day, create Histogram, and calculate mean and median.
-```{r} 
-steps_by_day <- aggregate(steps ~ date, data, sum)
-hist(steps_by_day$steps, main = paste("Total Steps Each Day"), col="blue", xlab="Number of Steps")
-rmean <- mean(steps_by_day$steps)
-rmedian <- median(steps_by_day$steps)
-```
+> ### Loading and preprocessing the data
+  > 
+  > Show any code that is needed to
+> 
+  > 1. Load the data (i.e. `read.csv()`)
+> 
+  > 2. Process/transform the data (if necessary) into a format suitable for your analysis
 
-The `mean` is `r rmean` and the `median` is `r rmedian`.
+Unzip the data file.
 
-## What is the average daily activity pattern?
-
-* Calculate average steps for each interval for all days. 
-* Plot the Average Number Steps per Day by Interval. 
-* Find interval with most average steps. 
 ```{r}
-steps_by_interval <- aggregate(steps ~ interval, data, mean)
-
-plot(steps_by_interval$interval,steps_by_interval$steps, type="l", xlab="Interval", ylab="Number of Steps",main="Average Number of Steps per Day by Interval")
-
-max_interval <- steps_by_interval[which.max(steps_by_interval$steps),1]
+executable <- file.path("C:", "Program Files (x86)", "7-Zip", "7z.exe")
+parameters <- "x"
+f <- file.path(getwd(), "activity.zip")
+switch <- "-aoa"
+cmd <- paste(paste0("\"", executable, "\""), parameters, paste0("\"", f, "\""), switch)
+cmd
+system(cmd)
 ```
 
-The 5-minute interval, on average across all the days in the data set, containing the maximum number of steps is `r max_interval`.
+Read the CSV file.
+Convert the data frame to a data table using the [`data.table`](http://cran.r-project.org/web/packages/data.table/index.html) package.
 
-## Impute missing values. Compare imputed to non-imputed data.
-Missing data needed to be imputed. Only a simple imputation approach was required for this assignment. 
-Missing values were imputed by inserting the average for each interval. Thus, if interval 10 was missing on 10-02-2012, the average for that interval for all days (0.1320755), replaced the NA. 
 ```{r}
-incomplete <- sum(!complete.cases(data))
-imputed_data <- transform(data, steps = ifelse(is.na(data$steps), steps_by_interval$steps[match(data$interval, steps_by_interval$interval)], data$steps))
+dt <- read.csv(file.path(getwd(), "activity.csv"))
+dt <- data.table(dt)
 ```
 
-Zeroes were imputed for 10-01-2012 because it was the first day and would have been over 9,000 steps higher than the following day, which had only 126 steps. NAs then were assumed to be zeros to fit the rising trend of the data. 
+Verify that the number of rows in the dataset is the expected value of 17,568.
+
 ```{r}
-imputed_data[as.character(imputed_data$date) == "2012-10-01", 1] <- 0
+check <- nrow(dt) == 17568
+if (check == FALSE) stop("The number of rows in the dataset is not 17,568.")
 ```
 
-Recount total steps by day and create Histogram. 
+Convert the `date` variable to a date class.
+And look at the structure of the dataset.
+
 ```{r}
-steps_by_day_i <- aggregate(steps ~ date, imputed_data, sum)
-hist(steps_by_day_i$steps, main = paste("Total Steps Each Day"), col="red", xlab="Number of Steps")
-
-#Create Histogram to show difference. 
-hist(steps_by_day$steps, main = paste("Total Steps Each Day"), col="blue", xlab="Number of Steps", add=T)
-legend("topright", c("Imputed", "Non-imputed"), col=c("red", "blue"), lwd=10)
+dt <- dt[, date := as.Date(date)]
+setkey(dt, date, interval)
+str(dt)
+dt
 ```
 
-Calculate new mean and median for imputed data. 
+
+> ### What is mean total number of steps taken per day?
+  > 
+  > For this part of the assignment, you can ignore the missing values in
+> the dataset.
+> 
+  > 1. Make a histogram of the total number of steps taken each day
+> 
+  > 2. Calculate and report the **mean** and **median** total number of steps taken per day
+
+Aggregate the number of steps taken each day.
+Days with missing values (`NA`) will have `NA` when aggregated.
+
 ```{r}
-rmean.i <- mean(steps_by_day_i$steps)
-rmedian.i <- median(steps_by_day_i$steps)
+dtDaily <- dt[, list(sumSteps = sum(steps)), date]
+head(dtDaily)
 ```
 
-Calculate difference between imputed and non-imputed data.
+Plot a histogram of the total number of steps taken each day.
+
+```{r histogramStepsTakenEachDay}
+ggplot(dtDaily, aes(x=sumSteps)) +
+  geom_histogram(alpha=1/2, binwidth=1000)
+```
+
+Calculate the mean and median total number of steps taken per day **before imputing**.
+
+```{r, results='asis'}
+tab <- dtDaily[, list(n = .N, nValid = sum(!is.na(sumSteps)), mean = mean(sumSteps, na.rm=TRUE), median = median(sumSteps, na.rm=TRUE))]
+print(xtable(tab), type="html", include.rownames=FALSE)
+```
+
+Copy the data table `dtDaily` before imputation to be used later.
+
 ```{r}
-mean_diff <- rmean.i - rmean
-med_diff <- rmedian.i - rmedian
+dtDaily <- dtDaily[, status := "Before imputation"]
+dtDailyBeforeImputation <- dtDaily
 ```
 
-Calculate total difference.
+
+> ### What is the average daily activity pattern?
+  > 
+  > 1. Make a time series plot (i.e. `type = "l"`) of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+> 
+  > 2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+
+Aggregate the average number of steps taken by 5-minute interval.
+
 ```{r}
-total_diff <- sum(steps_by_day_i$steps) - sum(steps_by_day$steps)
+dtIntervals <- dt[, list(meanSteps = mean(steps, na.rm=TRUE)), interval]
 ```
-* The imputed data mean is `r rmean.i`
-* The imputed data median is `r rmedian.i`
-* The difference between the non-imputed mean and imputed mean is `r mean_diff`
-* The difference between the non-imputed mean and imputed mean is `r med_diff`
-* The difference between total number of steps between imputed and non-imputed data is `r total_diff`. Thus, there were `r total_diff` more steps in the imputed data.
 
+Plot a time series of the 5-minute interval and the average number of steps taken across all days.
 
-## Are there differences in activity patterns between weekdays and weekends?
-Created a plot to compare and contrast number of steps between the week and weekend. There is a higher peak earlier on weekdays, and more overall activity on weekends.  
-``` {r}
-weekdays <- c("Monday", "Tuesday", "Wednesday", "Thursday", 
-              "Friday")
-imputed_data$dow = as.factor(ifelse(is.element(weekdays(as.Date(imputed_data$date)),weekdays), "Weekday", "Weekend"))
-
-steps_by_interval_i <- aggregate(steps ~ interval + dow, imputed_data, mean)
-
-library(lattice)
-
-xyplot(steps_by_interval_i$steps ~ steps_by_interval_i$interval|steps_by_interval_i$dow, main="Average Steps per Day by Interval",xlab="Interval", ylab="Steps",layout=c(1,2), type="l")
-
+```{r timeseriesStepsTakenEachInterval}
+ggplot(dtIntervals, aes(x=interval, y=meanSteps)) +
+  geom_line()
 ```
+
+
+> ### Imputing missing values
+  > 
+  > Note that there are a number of days/intervals where there are missing
+> values (coded as `NA`). The presence of missing days may introduce
+> bias into some calculations or summaries of the data.
+> 
+  > 1. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with `NA`s)
+> 
+  > 2. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+> 
+  > 3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+> 
+  > 4. Make a histogram of the total number of steps taken each day and Calculate and report the **mean** and **median** total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+Calculate the total number of missing values.
+
+```{r, results='asis'}
+dt <- dt[, isStepsMissing := is.na(steps)]
+tab <- dt[, .N, isStepsMissing]
+print(xtable(tab), type="html", include.rownames=FALSE)
+```
+
+Use the [VIM](http://cran.r-project.org/web/packages/VIM/index.html) package to impute missing values of the `steps` variable.
+
+
+```{r}
+dt <- kNN(dt)
+# dt <- irmi(dt)
+```
+
+The `kNN` function returns a dataset with all `NA`s replaced.
+So the `steps` variable now contains imputed values replacing the `NA`s.
+
+Verify that there are no missing values for `steps` after imputation.
+
+```{r, results='asis'}
+tab <- dt[, .N, list(isMissing = is.na(steps))]
+print(xtable(tab), type="html", include.rownames=FALSE)
+```
+
+Verify that missingness is complete for an entire day.
+Show all days with at least 1 missing value for the `steps` variable.
+Calculate the proportion of records with missing values for each such day.
+All proportions are 100%.
+
+```{r}
+dtMissingness <- dt[, list(countMissing = sum(isStepsMissing), countRecords = .N, propMissing = sum(isStepsMissing / .N)), date]
+dtMissingness[countMissing > 0]
+```
+
+#### After imputation of missing values
+
+Aggregate the number of steps taken each day.
+
+```{r}
+dtDaily <- dt[, list(sumSteps = sum(steps), isImputed = sum(steps_imp) > 0), date]
+head(dtDaily)
+```
+
+Plot a histogram of the total number of steps taken each day **after imputing** and compare with the histogram **before imputing**.
+Need to add an `isImputed` column to `dtDailyBeforeImputation` to make `rbind` work.
+
+```{r histogramStepsTakenEachDayAfterImputation}
+dtDaily <- dtDaily[, status := "After imputation"]
+dtDailyBeforeImputation <- dtDailyBeforeImputation[, isImputed := FALSE]
+dtDaily <- rbind(dtDaily, dtDailyBeforeImputation, use.names=TRUE)
+ggplot(dtDaily, aes(x=sumSteps, fill=isImputed)) +
+geom_histogram(alpha=1/2, binwidth=1000) +
+facet_wrap(~ status, nrow=2) +
+theme(legend.position="bottom")
+```
+
+Calculate the mean and median total number of steps taken per day **after imputing**.
+
+```{r, results='asis'}
+tab <- dtDaily[, list(n = .N, nValid = sum(!is.na(sumSteps)), mean = mean(sumSteps, na.rm=TRUE), median = median(sumSteps, na.rm=TRUE)), status]
+print(xtable(tab), type="html", include.rownames=FALSE)
+```
+
+The median of the imputed values is the same as the original values where missing values were not imputed.
+However, the mean of the imputed values is **less than** the original values.
+The overall impact of the imputed values is to **lower** the estimates of the number of steps taken each day.
+
+
+> ### Are there differences in activity patterns between weekdays and weekends?
+> 
+> For this part the `weekdays()` function may be of some help here. Use
+> the dataset with the filled-in missing values for this part.
+> 
+> 1. Create a new factor variable in the dataset with two levels -- "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+> 
+> 1. Make a panel plot containing a time series plot (i.e. `type = "l"`) of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). The plot should look something like the following, which was creating using **simulated data**:
+> 
+> ![Sample panel plot](instructions_fig/sample_panelplot.png) 
+> 
+> **Your plot will look different from the one above** because you will
+> be using the activity monitor data. Note that the above plot was made
+> using the lattice system but you can make the same version of the plot
+> using any plotting system you choose.
+
+Create a new factor variable in the dataset with two levels -- "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+Use this solution to [collapse the factor values](http://stackoverflow.com/a/9053619) for day of week.
+Verify that `dayOfWeek` and `dayType` are factor class variables.
+
+```{r}
+levels <- c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
+newLevels <- c("Weekend", rep("Weekday", 5), "Weekend")
+dt <- dt[, dayOfWeek := factor(weekdays(date), levels=levels)]
+dt <- dt[, dayType := factor(newLevels[dayOfWeek])]
+dt[, .N, list(dayType, dayOfWeek)]
+message(sprintf("Is dayOfWeek a factor? %s. Is dayType a factor? %s", is.factor(dt$dayOfWeek), is.factor(dt$dayType)))
+```
+
+Aggregate the average number of steps taken by 5-minute interval.
+Use the imputed values in the `steps` variable.
+
+```{r}
+dtIntervals <- dt[, list(meanSteps = mean(steps, na.rm=TRUE)), list(dayType, interval)]
+```
+
+Plot two time series (one for weekdays and the other for weekends) of the 5-minute intervals and average number of steps taken (imputed values).
+
+```{r timeseriesStepsTakenEachIntervalByDayTypePanel}
+ggplot(dtIntervals, aes(x=interval, y=meanSteps, color=dayType)) +
+geom_line() +
+facet_wrap(~ dayType, nrow=2) +
+theme(legend.position="none")
+```
+
+It's a bit hard to discern any differences.
+So overlay the time series on a single plot instead of using a panel plot.
+
+```{r timeseriesStepsTakenEachIntervalByDayType}
+ggplot(dtIntervals, aes(x=interval, y=meanSteps, color=dayType)) +
+  geom_line() +
+  theme(legend.position="bottom")
+```
+
+
+> ## Submitting the Assignment
+  > 
+  > To submit the assignment:
+  > 
+  > 1. Commit the your completed `PA1_template.Rmd` file to the `master` branch of
+> your git repository (you should already be on the `master` branch unless you
+                       > created new ones)
+> 
+  > 2. Commit your `PA1_template.md` and `PA1_template.html` files produced by
+> processing your R markdown file with `knit2html()` function in R (from the
+                                                                    > **knitr** package)
+> 
+  > 3. If your document has figures included (it should) then they should have
+> been placed in the `figures/` directory by default (unless you overrided the
+                                                      > default). Add and commit the `figures/` directory to yoru git repository.
+> 
+  > 4. Push your `master` branch to GitHub.
+> 
+  > 5. Submit the URL to your GitHub repository for this assignment on the course
+> web site.
+> 
+  > In addition to submitting the URL for your GitHub repository, you will
+> need to submit the 40 character SHA-1 hash (as string of numbers from
+                                              > 0-9 and letters from a-f) that identifies the repository commit that
+> contains the version of the files you want to submit. You can do this
+> in GitHub by doing the following
+> 
+  > 1. Going to your GitHub repository web page for this assignment
+> 
+  > 2. Click on the "?? commits" link where ?? is the number of commits you have
+> in the repository. For example, if you made a total of 10 commits to this
+> repository, the link should say "10 commits".
+> 
+  > 3. You will see a list of commits that you have made to this repository. The
+> most recent commit is at the very top. If this represents the version of the
+> files you want to submit, then just click the "copy to clipboard" button on
+> the right hand side that should appear when you hover over the SHA-1 hash.
+> Paste this SHA-1 hash into the course web site when you submit your
+> assignment. If you don't want to use the most recent commit, then go down and
+> find the commit you want and copy the SHA-1 hash.> 
+> 
+> A valid submission will look something like (this is just an **example**!)
+> 
+> ```r
+> https://github.com/rdpeng/RepData_PeerAssessment1
+> 
+> 7c376cc5447f11537f8740af8e07d6facc3d9645
+> ```
